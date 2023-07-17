@@ -10,7 +10,7 @@ from torch.nn.functional import normalize
 class noflayer(nn.Module):
     def __init__(self, nnode, in_features, out_features, adj, residual=False, variant=False):
         super(noflayer, self).__init__()
-        self.max_degree = 115
+        self.alpha = 0.2
         self.variant = variant
         self.nnode = nnode
         if self.variant:
@@ -23,25 +23,11 @@ class noflayer(nn.Module):
         #self.adj = adj
         self.adj = adj.to_dense()
         #self.adj = adj.to_dense() - torch.diag(torch.diag(adj.to_dense())) 
-        self.one_mask = np.zeros((adj.shape[0], int(self.max_degree)))
-        self.mask = np.zeros((adj.shape[0], int(self.max_degree)))
-        self.degree_mask = np.zeros((adj.shape[0],))
-        self.feature_mask = torch.zeros((adj.shape[0],int(self.max_degree), self.in_features)).cuda()
         self.sign_mask = torch.zeros((adj.shape[0], self.in_features)).cuda()
-        self.adj_uniform = torch.zeros((adj.shape[0], adj.shape[1])).cuda()
-        self.ind = torch.arange(0, self.adj.shape[0], 1)
-        self.ind = self.ind.reshape((self.ind.shape[0],1))
-        self.zero = torch.zeros((self.adj.shape[0], self.adj.shape[1]))
-        self.zero = self.zero.cuda()
-        
-        #self.dataprocessing()
         
         self.weight = Parameter(torch.FloatTensor(self.in_features,self.out_features))
         self.a = nn.Parameter(torch.empty(size=(2*self.in_features, 1)))
         nn.init.xavier_uniform_(self.a.data, gain=1.414)
-        self.b = nn.Parameter(torch.empty(size=(2*self.in_features, 1)))
-        nn.init.xavier_uniform_(self.b.data, gain=1.414)
-        self.alpha = 0.2
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.relu = nn.ReLU()
         #self.f = Parameter(torch.ones(self.nnode))
@@ -69,50 +55,6 @@ class noflayer(nn.Module):
         #self.weight.data.uniform_(-stdv, stdv)
         #self.weight_matrix_att.data.uniform_(-stdv, stdv)
         #self.weight_matrix.data.uniform_(-stdv, stdv)
-
-    def dataprocessing(self):
-        adj_arr = self.adj.cpu().detach().numpy().copy()
-        self.coloumn_mask = []
-        self.raf_indx = []
-        self.raf_len = []
-        for i in range(adj_arr.shape[0]):
-            length = len(np.ma.masked_equal(adj_arr[i],0).compressed())
-            if length <= self.max_degree:
-              self.mask[i,0:length] =  np.ma.masked_equal(adj_arr[i],0).compressed()
-            else:
-              self.mask[i,0:self.max_degree] =  np.ma.masked_equal(adj_arr[i],0).compressed()[0:self.max_degree]
-              nonzero = np.nonzero(adj_arr[i])[0]
-              fake_zero_ind = np.random.choice(nonzero,length-self.max_degree,replace=False)
-              adj_arr[i,fake_zero_ind] = 0
-              #length = self.max_degree
-            #self.lener.append(i)
-            if length > self.max_degree:
-                self.raf_indx.append(i)
-                self.raf_len.append(length-self.max_degree)
-                length = self.max_degree
-            for j in range(length):
-                self.coloumn_mask.append(j) 
-        self.one_mask[self.mask!=0] = 1
-        self.one_tensor = torch.from_numpy(self.one_mask).cuda() 
-        self.mask =  torch.from_numpy(self.mask).cuda().float()
-        rowsum = np.sum(self.one_mask, 1)
-        self.degree_mask = torch.from_numpy(1./rowsum)
-        #del rowsum, fake_zero_ind
-        self.adj_uniform = torch.from_numpy(adj_arr).cuda()
-        #self.raf_adj = adj_arr.copy()
-        #self.adj_nonzero_ind = adj_arr.nonzero()
-        
-        #self.adj_nonzero_ind = adj_arr.nonzero()
-        #self.coloumn_mask = []
-        #seen_num = []
-        #for i in self.adj_nonzero_ind[0]:
-            #if i not in seen_num:
-                #count = 0
-                #self.coloumn_mask.append(count)
-                #seen_num.append(i)
-            #else:
-                #count +=1
-                #self.coloumn_mask.append(count)
 
     def attention(self, feature):
         #feature = torch.mm(feature, self.weight_matrix_att)
