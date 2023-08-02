@@ -6,7 +6,6 @@ This is a repository of the paper titled: "GA-GWNN: Generalized Adaptive Graph W
 You will require pytroch gpu version 1.12.0 from [pytorch](https://pytorch.org/get-started/previous-versions/). You can also install spyder, only after installing the required pytorch version.
 ```
 conda install pytorch==1.12.0 torchvision==0.13.0 torchaudio==0.12.0 cudatoolkit=11.3 -c pytorch
-conda install spyder
 ```
 Then run requirements.txt file.
 ```
